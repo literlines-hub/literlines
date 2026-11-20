@@ -12,3 +12,17 @@ jobs:
           IG_TOKEN: ${{ secrets.IG_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
         run: python -c "import post_instagram as p; uid,u=p.find_user(); print('연결 확인:', uid, '@'+str(u))"
+      - name: 스레드 토큰 확인 (게시하지 않음)
+        env:
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os,json,urllib.request,urllib.error
+          t=os.environ.get("THREADS_TOKEN","").strip()
+          if not t: raise SystemExit("THREADS_TOKEN 시크릿이 비어 있음")
+          try:
+              r=json.load(urllib.request.urlopen("https://graph.threads.net/v1.0/me?fields=id,username&access_token="+t))
+              print("스레드 연결 확인:", r.get("id"), "@"+str(r.get("username")))
+          except urllib.error.HTTPError as e:
+              raise SystemExit("스레드 오류 %s: %s"%(e.code,e.read().decode(errors="replace").replace(t,"***")))
+          PY
