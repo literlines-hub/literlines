@@ -57,7 +57,40 @@ def find_user():
                 if d: return d[0]["id"], d[0].get("username")
             except SystemExit: pass
     raise SystemExit("인스타 계정 ID를 찾지 못했어요. config.json의 ig_user_id에 계정 ID(17841로 시작)를 넣어 주세요.")
+SHA=os.environ.get("GITHUB_SHA","")
+def media_url(folder,f):
+    if f.endswith(".mp4"):  # 영상은 올바른 형식(video/mp4)으로 내려주는 jsDelivr CDN 사용 (커밋 고정)
+        return f"https://cdn.jsdelivr.net/gh/{REPO}@{SHA or BRANCH}/posts/{folder}/{f}"
+    return f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/posts/{folder}/{f}"
+def wait_ready_long(cid):
+    for _ in range(60):
+        st=call("GET",cid,{"fields":"status_code"}).get("status_code")
+        if st=="FINISHED": return
+        if st in("ERROR","EXPIRED"): raise SystemExit(f"영상 처리 실패: {st}")
+        time.sleep(10)
+    raise SystemExit("영상 처리 시간 초과")
+def publish_reel(post):
+    uid,uname=find_user()
+    caption=open(os.path.join("posts",post["folder"],"caption.txt"),encoding="utf-8").read()
+    c=call("POST",f"{uid}/media",{"media_type":"REELS","video_url":media_url(post["folder"],post.get("video","reel.mp4")),"caption":caption,"share_to_feed":"true"})
+    wait_ready_long(c["id"]); res=call("POST",f"{uid}/media_publish",{"creation_id":c["id"]}); return res["id"], uname
+THREADS_TOKEN=os.environ.get("THREADS_TOKEN","").strip()
+def publish_threads(post):
+    """스레드: 캡션 첫 부분(한글 문장)을 글로 게시"""
+    if not THREADS_TOKEN: print("THREADS_TOKEN 없음: 스레드 건너뜀"); return None
+    text=open(os.path.join("posts",post["folder"],post.get("threads_file","threads.txt")),encoding="utf-8").read().strip()[:500]
+    def tcall(method,path,params):
+        params=dict(params,access_token=THREADS_TOKEN); data=urllib.parse.urlencode(params).encode()
+        req=urllib.request.Request(f"https://graph.threads.net/v1.0/{path}",data=data if method=="POST" else None,method=method)
+        if method=="GET": req=urllib.request.Request(f"https://graph.threads.net/v1.0/{path}?{data.decode()}")
+        try:
+            with urllib.request.urlopen(req,timeout=60) as r: return json.load(r)
+        except urllib.error.HTTPError as e: raise SystemExit("스레드 API 오류 %s: %s"%(e.code,e.read().decode(errors="replace").replace(THREADS_TOKEN,"***")))
+    me=tcall("GET","me",{"fields":"id,username"})
+    c=tcall("POST",f"{me['id']}/threads",{"media_type":"TEXT","text":text}); time.sleep(5)
+    r=tcall("POST",f"{me['id']}/threads_publish",{"creation_id":c["id"]}); print("스레드 게시 완료:",r["id"]); return r["id"]
 def publish(post):
+    if post.get("type")=="reel": return publish_reel(post)
     uid,uname=find_user()
     base=f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/posts/{post['folder']}"
     caption=open(os.path.join("posts",post["folder"],"caption.txt"),encoding="utf-8").read()
@@ -76,6 +109,9 @@ def main():
         if DRY: print("[테스트] 게시 예정:",p["folder"]); continue
         if not TOKEN: raise SystemExit("IG_TOKEN 시크릿이 없습니다")
         mid,user=publish(p); p["posted_id"]=mid; p["posted_at"]=now.isoformat(timespec="minutes"); changed=True
+        if p.get("threads"):
+            try: p["threads_id"]=publish_threads(p)
+            except SystemExit as e: print(e)
         print(f"게시 완료: {p['folder']} → @{user} (media {mid})")
         break   # 한 번 실행에 하나만
     if changed: json.dump(sched,open("schedule.json","w",encoding="utf-8"),ensure_ascii=False,indent=1)

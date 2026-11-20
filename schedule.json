@@ -1,4 +1,18 @@
-{"_설명":"approved가 true인 게시물만, time_kst(한국 시간)가 지나면 자동 게시됩니다. 혜강님이 확인한 뒤에만 true로 바꿉니다.",
- "posts":[
-  {"folder":"No01","time_kst":"2026-11-21T20:00","approved":false}
- ]}
+{
+ "_설명": "approved가 true인 게시물만, time_kst(한국 시간)가 지나면 자동 게시됩니다. type: carousel(기본) 또는 reel. threads: true면 스레드에도 글을 올립니다.",
+ "posts": [
+  {
+   "folder": "No01",
+   "type": "carousel",
+   "time_kst": "2026-11-21T20:00",
+   "threads": true,
+   "approved": false
+  },
+  {
+   "folder": "No01",
+   "type": "reel",
+   "time_kst": "2026-11-24T12:30",
+   "approved": false
+  }
+ ]
+}
