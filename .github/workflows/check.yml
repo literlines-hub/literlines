@@ -1,0 +1,14 @@
+name: token-check
+on: workflow_dispatch
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: 토큰으로 인스타 계정 확인 (게시하지 않음)
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+        run: python -c "import post_instagram as p; uid,u=p.find_user(); print('연결 확인:', uid, '@'+str(u))"

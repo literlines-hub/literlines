@@ -15,6 +15,7 @@ jobs:
       - name: 예약된 게시물 올리기
         env:
           IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
         run: python post_instagram.py
       - name: 게시 기록 저장
         run: |
