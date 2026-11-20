@@ -1,0 +1,4 @@
+{"_설명":"approved가 true인 게시물만, time_kst(한국 시간)가 지나면 자동 게시됩니다. 혜강님이 확인한 뒤에만 true로 바꿉니다.",
+ "posts":[
+  {"folder":"No01","time_kst":"2026-11-21T20:00","approved":false}
+ ]}
