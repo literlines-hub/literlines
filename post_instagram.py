@@ -7,7 +7,7 @@ schedule.json에서 '승인됨(approved: true)'이고 게시 시각(한국 시�
 import json, os, sys, time, datetime, urllib.request, urllib.parse
 IG_API="https://graph.instagram.com/v23.0"; FB_API="https://graph.facebook.com/v23.0"
 API=IG_API
-IG_USER_ID=os.environ.get("IG_USER_ID","").strip()
+IG_USER_ID=os.environ.get("IG_USER_ID","").strip() or (json.load(open("config.json")).get("ig_user_id","") if os.path.exists("config.json") else "").strip()
 TOKEN=os.environ.get("IG_TOKEN","").strip()
 REPO=os.environ.get("GITHUB_REPOSITORY","")       # 예: hyegang/gotgeun-hanjul
 BRANCH=os.environ.get("GITHUB_REF_NAME","main")
@@ -34,7 +34,11 @@ def find_user():
     - 통합 로그인(시스템 사용자) 토큰: graph.facebook.com + 비즈니스 포트폴리오의 인스타 계정"""
     global API
     if IG_USER_ID:
-        API=FB_API; return IG_USER_ID, None
+        for api in (FB_API, IG_API):
+            try:
+                me=call("GET",IG_USER_ID,{"fields":"id,username"},api); API=api; return IG_USER_ID, me.get("username")
+            except SystemExit as e: err=e
+        raise err
     try:
         me=call("GET","me",{"fields":"user_id,username"},IG_API); API=IG_API; return me["user_id"], me.get("username")
     except SystemExit: pass
@@ -44,13 +48,15 @@ def find_user():
             ig=pg.get("instagram_business_account")
             if ig: return ig["id"], ig.get("username")
     except SystemExit: pass
-    for b in call("GET","me/businesses",{"fields":"id"}).get("data",[]):
+    try: bizs=call("GET","me/businesses",{"fields":"id"}).get("data",[])
+    except SystemExit: bizs=[]
+    for b in bizs:
         for edge in ("instagram_accounts","owned_instagram_accounts"):
             try:
                 d=call("GET",f"{b['id']}/{edge}",{"fields":"id,username"}).get("data",[])
                 if d: return d[0]["id"], d[0].get("username")
             except SystemExit: pass
-    raise SystemExit("인스타 계정 ID를 찾지 못했어요. GitHub Secret 'IG_USER_ID'를 추가해 주세요.")
+    raise SystemExit("인스타 계정 ID를 찾지 못했어요. config.json의 ig_user_id에 계정 ID(17841로 시작)를 넣어 주세요.")
 def publish(post):
     uid,uname=find_user()
     base=f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/posts/{post['folder']}"
